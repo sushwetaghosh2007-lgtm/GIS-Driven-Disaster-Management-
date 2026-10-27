@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedZone-AI | Pan-India Intelligent GIS Relocation DSS</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-title h1 { font-size: 1.25rem; font-weight: 700; color: #fff; }
+        .logo-title span { font-size: 0.8rem; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 1px; }
+
+        .controls-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .btn {
+            background-color: var(--border-color);
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-danger { background-color: var(--accent-red); }
+        .btn-primary { background-color: var(--accent-blue); }
+
+        .select-filter {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .container { display: flex; flex: 1; height: calc(100vh - 61px); overflow: hidden; }
+
+        .sidebar-left {
+            width: 380px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .card h3 { font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; color: var(--accent-blue); }
+
+        .slider-group { margin-bottom: 12px; }
+        .slider-group label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
+        .slider-group input { width: 100%; }
+
+        .ahp-bar { margin-bottom: 8px; }
+        .ahp-bar label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-sub); margin-bottom: 2px; }
+        .progress { height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent-blue); border-radius: 3px; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        #map { flex: 1; min-height: 50%; }
+
+        .leaflet-control-layers {
+            background: var(--panel-bg) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 6px !important;
+        }
+        .leaflet-control-layers-list label { color: var(--text-main) !important; font-size: 0.8rem; }
+
+        .table-container {
+            height: 40%;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 12px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+        th { background: var(--bg-dark); color: var(--text-sub); padding: 10px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; }
+        td { padding: 8px 10px; border-bottom: 1px solid var(--border-color); }
+        tr:hover { background-color: rgba(255,255,255,0.03); cursor: pointer; }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-immediate { background-color: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .badge-short { background-color: rgba(249, 115, 22, 0.2); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+        .badge-medium { background-color: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+        .transit-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .transit-air { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .transit-car { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.3); }
+
+        @media print {
+            .sidebar-left, header, .controls-header, #map { display: none !important; }
+            .container, .main-content, .table-container { height: auto !important; overflow: visible !important; }
+            body { background: white; color: black; }
+            table { font-size: 10pt; }
+            th, td { border: 1px solid #ccc; color: black; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-title">
+            <h1>RedZone-AI</h1>
+            <span>Pan-India Decision Support System · ISRO Bhuvan Enabled</span>
+        </div>
+        <div class="controls-header">
+            <select id="hazardFilter" class="select-filter" onchange="applyFilters()">
+                <option value="">All Hazard Types</option>
+                <option value="Cloudburst">Cloudburst / Flash Flood</option>
+                <option value="Landslide">Landslide / Debris Flow</option>
+                <option value="Subsidence">Land Subsidence</option>
+                <option value="Erosion">Coastal / River Erosion</option>
+            </select>
+            <button id="simBtn" class="btn btn-danger" onclick="toggleCloudburstSimulation()">⚡ Simulate Extreme Rainfall</button>
+            <button class="btn btn-primary" onclick="exportSDMAReport()">📄 Export SDMA Report</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar Controls -->
+        <div class="sidebar-left">
+            <div class="card" id="selectedHabitationCard">
+                <h3>Habitation Risk Profile</h3>
+                <p style="font-size: 0.85rem; color: var(--text-sub);">Select a habitation from the table or map to tune parameters.</p>
+            </div>
+
+            <div class="card" id="ahpCard" style="display:none;">
+                <h3>AHP Safe Site Suitability</h3>
+                <div id="ahpBreakdownContainer"></div>
+            </div>
+        </div>
+
+        <!-- GIS Map + Priority Table -->
+        <div class="main-content">
+            <div id="map"></div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Habitation</th>
+                            <th>Hazard Type</th>
+                            <th>Households</th>
+                            <th>RPI Score</th>
+                            <th>Priority Tier</th>
+                            <th>Assigned Safe Site</th>
+                            <th>Air Dist.</th>
+                            <th>🚁 Flying Time</th>
+                            <th>🚗 Car Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="habitationsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api/v1";
+        let map, mapMarkers = {}, connectionPolyline = null;
+        let habitationsData = [], sitesData = [];
+        let selectedHabId = null;
+        let isSimulationActive = false;
+
+        function initMap() {
+            // Standard Basemaps
+            const darkCanvas = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                maxZoom: 18
+            });
+
+            const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            });
+
+            // ISRO Bhuvan Satellite Layer (NRSC OGC WMS Endpoint)
+            const bhuvanSatellite = L.tileLayer.wms('https://bhuvan-vec1.nrsc.gov.in/bhuvan/gwc/service/wms', {
+                layers: 'india3',
+                format: 'image/png',
+                transparent: true,
+                attribution: '<b>ISRO / NRSC Bhuvan</b>',
+                maxZoom: 18
+            });
+
+            // ISRO Bhuvan Land Use / Land Cover (LULC) Thematic Layer
+            const bhuvanLulc = L.tileLayer.wms('https://bhuvan-vec1.nrsc.gov.in/bhuvan/gwc/service/wms', {
+                layers: 'LULC:LULC_50K_0506',
+                format: 'image/png',
+                transparent: true,
+                opacity: 0.65,
+                attribution: '<b>ISRO Bhuvan LULC 50K</b>'
+            });
+
+            // RainViewer Live Radar Overlay
+            const livePrecipitationRadar = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast_5/{z}/{x}/{y}/2/1_1.png', {
+                attribution: 'Map data &copy; RainViewer',
+                opacity: 0.6,
+                maxZoom: 18
+            });
+
+            // Initial map instance
+            map = L.map('map', {
+                center: [22.5937, 78.9629],
+                zoom: 5,
+                layers: [darkCanvas]
+            });
+
+            const baseMaps = {
+                "Dark Vector": darkCanvas,
+                "🛰️ ISRO Bhuvan Satellite": bhuvanSatellite,
+                "Street Map": osmStandard
+            };
+
+            const overlayMaps = {
+                "🏞️ ISRO Bhuvan Land Cover (LULC)": bhuvanLulc,
+                "🌧️ Live Radar Overlay": livePrecipitationRadar
+            };
+
+            L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+        }
+
+        async function fetchData() {
+            try {
+                const [habRes, siteRes] = await Promise.all([
+                    fetch(`${API_BASE}/habitations`),
+                    fetch(`${API_BASE}/sites`)
+                ]);
+                const habJson = await habRes.json();
+                const siteJson = await siteRes.json();
+                
+                habitationsData = habJson.data;
+                sitesData = siteJson.data;
+
+                renderDashboard();
+
+                if (habitationsData.length > 0) {
+                    const bounds = L.latLngBounds(habitationsData.map(h => [h.lat, h.lng]));
+                    map.fitBounds(bounds, { padding: [40, 40] });
+                }
+            } catch (err) {
+                console.error("Backend Connection Error:", err);
+            }
+        }
+
+        function renderDashboard() {
+            renderMapMarkers();
+            renderTable();
+            if (selectedHabId) renderSidebarDetails(selectedHabId);
+        }
+
+        function renderMapMarkers() {
+            Object.values(mapMarkers).forEach(m => map.removeLayer(m));
+            mapMarkers = {};
+
+            sitesData.forEach(site => {
+                const marker = L.circleMarker([site.lat, site.lng], {
+                    radius: 9,
+                    fillColor: "#10b981",
+                    color: "#ffffff",
+                    weight: 2,
+                    fillOpacity: 0.9
+                }).bindPopup(`<b>Safe Site Hub: ${site.name}</b><br>CCS Rating: ${site.ccs}`);
+                marker.addTo(map);
+            });
+
+            habitationsData.forEach(hab => {
+                const color = hab.tier === 'immediate' ? '#ef4444' : hab.tier === 'short' ? '#f97316' : '#10b981';
+                const marker = L.circleMarker([hab.lat, hab.lng], {
+                    radius: 7,
+                    fillColor: color,
+                    color: "#ffffff",
+                    weight: 1.5,
+                    fillOpacity: 0.8
+                }).bindPopup(`<b>${hab.name}</b><br>${hab.region}<br>RPI Score: ${hab.rpi}`);
+                
+                marker.on('click', () => selectHabitation(hab.id));
+                marker.addTo(map);
+                mapMarkers[hab.id] = marker;
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('habitationsTableBody');
+            tbody.innerHTML = habitationsData.map(hab => `
+                <tr onclick="selectHabitation('${hab.id}')" style="${selectedHabId === hab.id ? 'background: rgba(59, 130, 246, 0.15);' : ''}">
+                    <td><b>${hab.name}</b><br><small style="color:var(--text-sub);">${hab.region}</small></td>
+                    <td>${hab.hazardType}</td>
+                    <td>${hab.households}</td>
+                    <td><b>${hab.rpi}</b></td>
+                    <td><span class="badge badge-${hab.tier}">${hab.tier}</span></td>
+                    <td>${hab.siteName}</td>
+                    <td>${hab.distanceKm} km</td>
+                    <td><span class="transit-tag transit-air">🚁 ${hab.flyingTime}</span></td>
+                    <td><span class="transit-tag transit-car">🚗 ${hab.carTime}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function selectHabitation(id) {
+            selectedHabId = id;
+            renderDashboard();
+
+            const hab = habitationsData.find(h => h.id === id);
+            const site = sitesData.find(s => s.id === hab.siteId);
+
+            if (connectionPolyline) map.removeLayer(connectionPolyline);
+            if (hab && site) {
+                connectionPolyline = L.polyline([[hab.lat, hab.lng], [site.lat, site.lng]], {
+                    color: '#3b82f6',
+                    dashArray: '6, 6',
+                    weight: 2.5
+                }).addTo(map);
+                map.fitBounds(connectionPolyline.getBounds(), { padding: [80, 80] });
+            }
+        }
+
+        function renderSidebarDetails(id) {
+            const hab = habitationsData.find(h => h.id === id);
+            if (!hab) return;
+
+            document.getElementById('selectedHabitationCard').innerHTML = `
+                <h3>${hab.name} Profile</h3>
+                <p style="font-size:0.8rem; color:var(--text-sub); margin-bottom:12px;">${hab.region} · ${hab.hazardType}</p>
+                
+                <div class="slider-group">
+                    <label><span>Hazard Index</span><b id="val-hazard">${hab.hazard}</b></label>
+                    <input type="range" min="0" max="100" value="${hab.hazard}" onchange="updateHabitation('${hab.id}', 'hazard', this.value)">
+                </div>
+                <div class="slider-group">
+                    <label><span>Vulnerability Score</span><b id="val-vuln">${hab.vulnerability}</b></label>
+                    <input type="range" min="0" max="100" value="${hab.vulnerability}" onchange="updateHabitation('${hab.id}', 'vulnerability', this.value)">
+                </div>
+                <div class="slider-group">
+                    <label><span>Disaster History</span><b id="val-hist">${hab.history}</b></label>
+                    <input type="range" min="0" max="100" value="${hab.history}" onchange="updateHabitation('${hab.id}', 'history', this.value)">
+                </div>
+                
+                <div style="margin-top:12px; font-size:0.8rem; border-top:1px solid var(--border-color); padding-top:8px;">
+                    <p><b>Air Distance:</b> ${hab.distanceKm} km</p>
+                    <p><b>Est. Road Distance:</b> ${hab.roadDistanceKm} km</p>
+                    <p style="margin-top:4px;"><b>🚁 Flying Time:</b> <span style="color:var(--accent-blue);">${hab.flyingTime}</span></p>
+                    <p><b>🚗 Car / Drive Time:</b> <span style="color:var(--accent-orange);">${hab.carTime}</span></p>
+                </div>
+            `;
+
+            const ahpCard = document.getElementById('ahpCard');
+            const ahpContainer = document.getElementById('ahpBreakdownContainer');
+            ahpCard.style.display = "block";
+
+            const ahp = hab.ahpBreakdown || {};
+            ahpContainer.innerHTML = `
+                <p style="font-size:0.85rem; margin-bottom:8px;">Target Hub: <b>${hab.siteName}</b></p>
+                ${renderAhpBar("Land Availability", ahp.landAvailability)}
+                ${renderAhpBar("Infrastructure Access", ahp.infraAccess)}
+                ${renderAhpBar("Livelihood Potential", ahp.livelihoodScore)}
+                ${renderAhpBar("Legal & Env. Clearance", ahp.legalClearance)}
+            `;
+        }
+
+        function renderAhpBar(label, value) {
+            val = value || 0;
+            return `
+                <div class="ahp-bar">
+                    <label><span>${label}</span><span>${val}%</span></label>
+                    <div class="progress"><div class="progress-fill" style="width:${val}%"></div></div>
+                </div>
+            `;
+        }
+
+        async function updateHabitation(id, field, value) {
+            await fetch(`${API_BASE}/habitations/${id}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ [field]: parseFloat(value) })
+            });
+            fetchData();
+        }
+
+        async function applyFilters() {
+            const type = document.getElementById('hazardFilter').value;
+            const res = await fetch(`${API_BASE}/habitations${type ? '?hazard_type=' + type : ''}`);
+            const json = await res.json();
+            habitationsData = json.data;
+            renderDashboard();
+        }
+
+        async function toggleCloudburstSimulation() {
+            const simBtn = document.getElementById('simBtn');
+
+            if (!isSimulationActive) {
+                const res = await fetch(`${API_BASE}/simulate-cloudburst`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ rainfall_mm: 120.0 })
+                });
+                const json = await res.json();
+                habitationsData = json.data;
+                
+                isSimulationActive = true;
+                simBtn.className = "btn btn-primary";
+                simBtn.innerHTML = "🔄 Reset to Baseline";
+            } else {
+                const res = await fetch(`${API_BASE}/simulate-cloudburst`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ rainfall_mm: 0.0 })
+                });
+                const json = await res.json();
+                habitationsData = json.data;
+                
+                isSimulationActive = false;
+                simBtn.className = "btn btn-danger";
+                simBtn.innerHTML = "⚡ Simulate Extreme Rainfall";
+            }
+
+            renderDashboard();
+        }
+
+        function exportSDMAReport() {
+            window.print();
+        }
+
+        window.onload = () => {
+            initMap();
+            fetchData();
+        };
+    </script>
+</body>
+</html>
